@@ -3,11 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Platformă Curs Postuniversitar</title>
+  <title>Curs Postuniversitar - Business Analysis</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    /* Protecție împotriva selectării textului */
     .no-select {
       -webkit-user-select: none;
       -moz-user-select: none;
@@ -21,77 +20,203 @@
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 no-select min-h-screen flex flex-col">
 
-  <!-- APLICAȚIA PRINCIPALĂ -->
   <div id="app" class="flex-1 flex flex-col"></div>
 
   <script>
-    // --- BAZĂ DE DATE LOCALĂ (Simulată în memorie / localStorage) ---
-    const defaultData = {
+    // --- BAZĂ DE DATE INITIALA (LECTORI, CURSANȚI ȘI PROGRAM) ---
+    const defaultDb = {
       users: [
-        { id: 1, email: "cursant1@email.com", pass: "cursant123", name: "Maria Ionescu", role: "student" },
-        { id: 2, email: "cursant2@email.com", pass: "cursant123", name: "Alexandru Popa", role: "student" },
-        { id: 3, email: "admin@email.com", pass: "admin123", name: "Prof. Dr. Popescu (Lector)", role: "admin" }
+        // Lectori / Admini
+        { id: 1, name: "Conf. Smaranda Cimpoeru", email: "smaranda.cimpoeru@csie.ase.ro", pass: "0711smaranda", role: "admin" },
+        { id: 2, name: "Prof. Erika Marin", email: "erika.marin@csie.ase.ro", pass: "0811erika", role: "admin" },
+        { id: 3, name: "Conf. Mihaela Mihai", email: "mihaela.mihai@csie.ase.ro", pass: "1411mihaela", role: "admin" },
+        { id: 4, name: "Conf. Mihaela Covrig", email: "mihaela.covrig@csie.ase.ro", pass: "1511mihaela", role: "admin" },
+        { id: 5, name: "Prof. Cristina Boboc", email: "cristina.boboc@csie.ase.ro", pass: "0512cristina", role: "admin" },
+        { id: 6, name: "Camelia Dan (LSEG)", email: "camelia.dan@lseg.com", pass: "0512camelia", role: "admin" },
+        { id: 7, name: "Organizator Curs", email: "admin@business-analysis.ro", pass: "admin2026!", role: "admin" },
+
+        // 29 Cursanti
+        { id: 11, name: "BOLDEANU DANA", email: "boldeanud@cig.ase.ro", pass: "221boldea#", role: "student" },
+        { id: 12, name: "Mihaela Constantinescu", email: "mihaela.constantinescu@mk.ase.ro", pass: "427mihael$", role: "student" },
+        { id: 13, name: "Ioana Cretu", email: "ioana.cretu@amp.ase.ro", pass: "614ioanac%", role: "student" },
+        { id: 14, name: "Maria Claudia Diaconeasa (Preda)", email: "maria.diaconeasa@eam.ase.ro", pass: "624mariac*", role: "student" },
+        { id: 15, name: "CRISTINA DUMITRU", email: "cristina.dumitru81@upb.ro", pass: "762cristi!", role: "student" },
+        { id: 16, name: "Anda Giuclea", email: "andagiuclea@gmail.com", pass: "834giucle#", role: "student" },
+        { id: 17, name: "Emilia Gogu", email: "emilia.gogu@csie.ase.ro", pass: "417egoguu$", role: "student" },
+        { id: 18, name: "Razvan Hoinaru", email: "razvan.hoinaru@cig.ase.ro", pass: "923hoinar%", role: "student" },
+        { id: 19, name: "Ana - Maria Marcu", email: "anamaria.marcu@csie.ase.ro", pass: "158amarcu*", role: "student" },
+        { id: 20, name: "Sorina Ioana Misu", email: "sorinaioana.misu@man.ase.ro", pass: "672smisuu!", role: "student" },
+        { id: 21, name: "Ina Nimerenco", email: "ina.nimerenco@eam.ase.ro", pass: "349nimere#", role: "student" },
+        { id: 22, name: "Pia Oancea", email: "pia.oancea@gmail.com", pass: "805oancea$", role: "student" },
+        { id: 23, name: "RAMONA MIHAELA Paun", email: "ramona.paun@csie.ase.ro", pass: "461rpaunn%", role: "student" },
+        { id: 24, name: "IONUT LAURENTIU PETRE", email: "laurentiu.petre@eam.ase.ro", pass: "738ipetre*", role: "student" },
+        { id: 25, name: "Costin Stavri", email: "stavri.costin@gmail.com", pass: "219cstavr!", role: "student" },
+        { id: 26, name: "Razvan VASILE", email: "razvan.vasile@csie.ase.ro", pass: "583vasile#", role: "student" },
+        { id: 27, name: "Valentin Butanche", email: "valentin.butanche@gmail.com", pass: "941butanc$", role: "student" },
+        { id: 28, name: "ANDREEA GEORGIANA MARIN", email: "andreea-georgiana.marin@s.unibuc.ro", pass: "326marinn%", role: "student" },
+        { id: 29, name: "Florina Botezatu", email: "florina.botezatu@mk.ase.ro", pass: "604boteza*", role: "student" },
+        { id: 30, name: "Andreea Ardelean", email: "andreea.ardelean@faa.unibuc.ro", pass: "851ardele!", role: "student" },
+        { id: 31, name: "ALINA GABRIELA DRAGHICI", email: "alina.draghici@rei.ase.ro", pass: "197draghi#", role: "student" },
+        { id: 32, name: "Consuela-Elena Popescu", email: "consuela.popescu@rei.ase.ro", pass: "473popesc$", role: "student" },
+        { id: 33, name: "Ioana Maria Tudorache", email: "ioana.maria.tudorache@gmail.com", pass: "628tudora%", role: "student" },
+        { id: 34, name: "Mihaela Hesfelean", email: "mihaela.hesfelean@gmail.com", pass: "254hesfel*", role: "student" },
+        { id: 35, name: "Adina-Raluca OLTEANU", email: "adina.olteanu@man.ase.ro", pass: "789oltean!", role: "student" },
+        { id: 36, name: "Tania Stoean", email: "tania_stoean@yahoo.com", pass: "312stoean#", role: "student" },
+        { id: 37, name: "Elena Ionascu", email: "elena.ionascu@cig.ase.ro", pass: "965ionasc$", role: "student" },
+        { id: 38, name: "Ioana Draghia", email: "ioana@net.ase.ro", pass: "438draghi%", role: "student" },
+        { id: 39, name: "Ioana Bălășoiu", email: "ioana.balasoiu@fabiz.ase.ro", pass: "174balaso*", role: "student" }
       ],
       courses: [
         {
           id: 1,
-          title: "Curs 1: Introducere și Concepte Fundamentale",
-          description: "Notiuni introductive, cadrul legislativ și principii generale.",
+          day: "Ziua 1",
+          date: "7 noiembrie • 09:00–15:00 (6 h)",
+          title: "Vizualizarea datelor și dashboard-uri",
+          lecturer: "Conf. Smaranda Cimpoeru",
+          pdfData: "",
+          description: "Tehnici moderne de vizualizare a datelor de business, dashboard-uri interactive și storytelling cu date.",
           slides: [
-            { title: "Slide 1: Titlul Cursului", content: "Bine ați venit la Cursul Postuniversitar!\n\nObiective:\n- Înțelegerea cadrului general\n- Analiza studiilor de caz\n- Aplicabilitate practică." },
-            { title: "Slide 2: Structura Modulelor", content: "Moulul 1: Fundamente\nModulul 2: Metodologii Avansate\nModulul 3: Evaluare și Proiect Final" },
-            { title: "Slide 3: Bibliografie și Cerințe", content: "Lecturi obligatorii:\n1. Ghidul Practic 2026\n2. Manualul de Standarde Postuniversitare." }
+            { title: "Slide 1: Introducere în Vizualizarea Datelor", content: "1. Importanța vizualizării datelor în deciziile de business.\n2. Principii de design pentru tabouri de bord (Dashboards).\n3. Selecția graficelor potrivite în funcție de tipul de date." },
+            { title: "Slide 2: Construirea Dashboard-urilor", content: "• Indicatori cheie de performanță (KPIs)\n• Elemente grafice interactive, filtre și slicers\n• Bune practici în layout și culori" }
           ]
         },
         {
           id: 2,
-          title: "Curs 2: Metodologii și Studii de Caz",
-          description: "Aplicarea modelelor teoretice pe cazuri reale.",
+          day: "Ziua 2",
+          date: "8 noiembrie • 09:00–13:00 (4 h)",
+          title: "Excel – analiză univariată și bivariată",
+          lecturer: "Prof. Erika Marin",
+          pdfData: "",
+          description: "Prelucrarea datelor în Microsoft Excel, indicatori statistici descriptivi și analiza relațiilor bivariate.",
           slides: [
-            { title: "Slide 1: Studiu de Caz #1", content: "Analiza situației A: Identificarea problemelor de structură." },
-            { title: "Slide 2: Soluții Recomandate", content: "Strategii de implementare și planul de acțiune." }
+            { title: "Slide 1: Analiza Univariată", content: "• Indicatori ai tendinței centrale (Medie, Mediană, Mod)\n• Indicatori ai împrăștierii (Dispersie, Abatere standard)\n• Utilizarea Pivot Tables." },
+            { title: "Slide 2: Analiza Bivariată", content: "• Tabele încrucișate (Crosstabs)\n• Evaluarea asocierii între variabile\n• Diagrame de împrăștiere (Scatter Plots)" }
+          ]
+        },
+        {
+          id: 3,
+          day: "Ziua 3",
+          date: "14 noiembrie • 09:00–14:00 (5 h)",
+          title: "Excel, SPSS – Testarea ipotezelor și corelație",
+          lecturer: "Conf. Mihaela Mihai",
+          pdfData: "",
+          description: "Fundamente de inferență statistică, formularea și testarea ipotezelor, coeficienți de corelație.",
+          slides: [
+            { title: "Slide 1: Testarea Ipotezelor Statistice", content: "• Ipoteza nulă (H0) și alternativă (H1)\n• Nivelul de semnificație (p-value)\n• Testul t pentru compararea mediilor." }
+          ]
+        },
+        {
+          id: 4,
+          day: "Ziua 4",
+          date: "15 noiembrie • 09:00–14:00 (5 h)",
+          title: "R Studio – regresie liniară",
+          lecturer: "Conf. Mihaela Covrig",
+          pdfData: "",
+          description: "Modelarea relațiilor cauzale prin regresie liniară simplă și multiplă în R Studio.",
+          slides: [
+            { title: "Slide 1: Regresie Liniară în R Studio", content: "• Sintaxa R: lm(y ~ x)\n• Interpretarea coeficientului R-pătrat\n• Validarea ipotezelor modelului." }
+          ]
+        },
+        {
+          id: 5,
+          day: "Evaluare 1",
+          date: "15 noiembrie • 14:00–15:00 (1 h)",
+          title: "Evaluare: Analiza datelor de business",
+          lecturer: "Comisie: Prof. Erika Marin, Conf. Smaranda Cimpoeru, Conf. Mihaela Mihai, Conf. Mihaela Covrig",
+          pdfData: "",
+          description: "Proba practică de evaluare pentru primele 4 module de curs.",
+          slides: [
+            { title: "Instrucțiuni Evaluare", content: "• Durată: 1 oră\n• Subiecte din vizualizare date, Excel, SPSS și R Studio." }
+          ]
+        },
+        {
+          id: 6,
+          day: "Ziua 5",
+          date: "5 decembrie • 09:00–15:00 (6 h)",
+          title: "Python – metode de clasificare",
+          lecturer: "Prof. Cristina Boboc, Camelia Dan (LSEG)",
+          pdfData: "",
+          description: "Algoritmi de învățare automată supravegheată în Python (Scikit-Learn, Pandas) pentru clasificare.",
+          slides: [
+            { title: "Slide 1: Algoritmi de Clasificare", content: "• Regresie Logistică, Arbori de Decizie, Random Forest\n• Matricea de confuzie, Precizie și Recall." }
+          ]
+        },
+        {
+          id: 7,
+          day: "Ziua 6",
+          date: "6 decembrie • 09:00–13:00 (4 h)",
+          title: "Python – metode de clusterizare",
+          lecturer: "Prof. Cristina Boboc, Camelia Dan (LSEG)",
+          pdfData: "",
+          description: "Segmentarea datelor și învățare nesupravegheată folosind K-Means și Clustering Ierarhic.",
+          slides: [
+            { title: "Slide 1: Clusterizare în Python", content: "• Algoritmul K-Means și identificarea numărului optim de clustere\n• Segmentarea clienților în proiecte reale." }
+          ]
+        },
+        {
+          id: 8,
+          day: "Evaluare 2",
+          date: "6 decembrie • 13:00–14:00 (1 h)",
+          title: "Evaluare: Data mining",
+          lecturer: "Comisie: Prof. Cristina Boboc",
+          pdfData: "",
+          description: "Evaluare practică pe modele de clasificare și clusterizare în Python.",
+          slides: [
+            { title: "Instrucțiuni Evaluare Data Mining", content: "• Rezolvare caz practic în Python." }
+          ]
+        },
+        {
+          id: 9,
+          day: "Final",
+          date: "12 decembrie (Propunere - 1 h)",
+          title: "Evaluarea finală absolvire – Test grilă",
+          lecturer: "Prof. Cristina Boboc",
+          pdfData: "",
+          description: "Examenul final grilă de absolvire a cursului postuniversitar Business Analysis.",
+          slides: [
+            { title: "Examen Final Absolvire", content: "• Test grilă sintetic din toate modulele de curs." }
           ]
         }
       ],
       assignments: [
-        { id: 1, title: "Tema 1: Analiză critică pe Cursul 1", dueDate: "2026-11-15", submitted: [] }
+        { id: 1, courseId: 1, title: "Tema 1: Proiect Dashboard & Vizualizare Date", dueDate: "2026-11-13", submitted: [] }
       ],
       questions: [
-        { id: 1, author: "Maria Ionescu", title: "Întrebare Curs 1 Slide 2", text: "Care este termenul limita pentru parcurgerea modulului 1?", replies: ["Lector: Termenul este finalul acestei săptămâni."] }
+        { id: 1, author: "BOLDEANU DANA", title: "Cerințe software R Studio", text: "Ce versiune de R Studio este recomandat să avem preinstalată?", replies: ["Conf. Mihaela Covrig: Se poate utiliza orice versiune recentă R (>= 4.2) și RStudio Desktop."] }
       ]
     };
 
-    // Stocare locală
-    if (!localStorage.getItem('lms_data')) {
-      localStorage.setItem('lms_data', JSON.stringify(defaultData));
+    // Salvare/Incarcare din localStorage
+    if (!localStorage.getItem('ba_lms_db')) {
+      localStorage.setItem('ba_lms_db', JSON.stringify(defaultDb));
     }
-    
-    let db = JSON.parse(localStorage.getItem('lms_data'));
-    let currentUser = JSON.parse(sessionStorage.getItem('lms_session')) || null;
+    let db = JSON.parse(localStorage.getItem('ba_lms_db'));
+    let currentUser = JSON.parse(sessionStorage.getItem('ba_lms_user')) || null;
     let activeTab = 'courses';
-    let currentSlideIndex = 0;
     let selectedCourse = null;
+    let currentSlideIndex = 0;
+    let editingCourse = null;
 
     function saveData() {
-      localStorage.setItem('lms_data', JSON.stringify(db));
+      localStorage.setItem('ba_lms_db', JSON.stringify(db));
       render();
     }
 
-    // --- PROTECȚII ANTI-DESCĂRCARE & COPY/PRINT ---
+    // --- PROTECȚII ANTI-DESCĂRCARE & BLOCARE COPY/PRINT ---
     document.addEventListener('contextmenu', e => e.preventDefault());
     document.addEventListener('keydown', e => {
       if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 's' || e.key === 'c' || e.key === 'u')) {
         e.preventDefault();
-        alert('Protecție activă: Copierea, salvarea sau imprimarea materialelor este restricționată.');
+        alert('Protecție activă: Salvarea, copierea sau imprimarea suportului de curs este restricționată.');
       }
     });
 
-    // --- LOGICĂ AUTENTIFICARE ---
+    // --- AUTENTIFICARE ---
     function login(email, pass) {
-      const user = db.users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.pass === pass);
-      if (user) {
-        currentUser = user;
-        sessionStorage.setItem('lms_session', JSON.stringify(currentUser));
+      const u = db.users.find(x => x.email.toLowerCase() === email.trim().toLowerCase() && x.pass === pass.trim());
+      if (u) {
+        currentUser = u;
+        sessionStorage.setItem('ba_lms_user', JSON.stringify(currentUser));
         render();
       } else {
         alert('Email sau parolă incorectă!');
@@ -100,41 +225,72 @@
 
     function logout() {
       currentUser = null;
-      sessionStorage.removeItem('lms_session');
+      sessionStorage.removeItem('ba_lms_user');
       selectedCourse = null;
+      editingCourse = null;
       render();
     }
 
-    // --- RANDARE INTERFAȚĂ ---
+    // --- ÎNCĂRCARE FILE PDF DE CĂTRE ADMIN ---
+    function handlePdfUpload(courseId, fileInput) {
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      if (file.type !== "application/pdf") {
+        alert("Vă rugăm să selectați un fișier în format PDF!");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const course = db.courses.find(c => c.id === courseId);
+        if (course) {
+          course.pdfData = e.target.result; // Salvare ca Data URL (Base64)
+          saveData();
+          alert("Fișierul PDF a fost încărcat și securizat cu succes!");
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function setPdfUrl(courseId, url) {
+      const course = db.courses.find(c => c.id === courseId);
+      if (course) {
+        course.pdfData = url;
+        saveData();
+        alert("Calea PDF a fost salvată!");
+      }
+    }
+
+    // --- RANDARE APLICAȚIE ---
     function render() {
       const app = document.getElementById('app');
 
       if (!currentUser) {
         app.innerHTML = `
           <div class="min-h-screen flex items-center justify-center bg-slate-100 p-4">
-            <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-md border border-slate-200">
+            <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md border border-slate-200">
               <div class="text-center mb-6">
-                <div class="bg-indigo-600 text-white w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-xl font-bold">
-                  <i class="fa-solid fa-graduation-cap"></i>
+                <div class="bg-indigo-600 text-white w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl font-bold shadow">
+                  <i class="fa-solid fa-chart-line"></i>
                 </div>
-                <h1 class="text-2xl font-bold text-slate-800">Curs Postuniversitar</h1>
-                <p class="text-slate-500 text-sm mt-1">Autentificare Cursanți și Lectori</p>
+                <h1 class="text-2xl font-bold text-slate-900">Business Analysis</h1>
+                <p class="text-slate-500 text-xs mt-1 uppercase tracking-wider font-semibold">Curs Postuniversitar ASE</p>
               </div>
               <form onsubmit="event.preventDefault(); login(this.email.value, this.pass.value);">
                 <div class="mb-4">
-                  <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Email</label>
-                  <input name="email" type="email" required placeholder="cursant1@email.com" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Adresă Email</label>
+                  <input name="email" type="email" required placeholder="nume@domain.ro" class="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
                 </div>
                 <div class="mb-6">
                   <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Parolă</label>
-                  <input name="pass" type="password" required placeholder="••••••••" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <input name="pass" type="password" required placeholder="••••••••" class="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
                 </div>
-                <button type="submit" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition">Intră în Cont</button>
+                <button type="submit" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition shadow">Intră în Platformă</button>
               </form>
               <div class="mt-6 p-3 bg-slate-50 rounded-lg text-xs text-slate-500 border border-slate-200">
-                <p class="font-semibold text-slate-700 mb-1">Date demo de test:</p>
-                <p>Cursant: <code>cursant1@email.com</code> / <code>cursant123</code></p>
-                <p>Lector/Admin: <code>admin@email.com</code> / <code>admin123</code></p>
+                <p class="font-bold text-slate-700 mb-1"><i class="fa-solid fa-info-circle text-indigo-500"></i> Autentificare:</p>
+                <p>Cursanți & Lectori: Folosiți adresa de email și parola transmisă de organizator.</p>
               </div>
             </div>
           </div>
@@ -143,41 +299,43 @@
       }
 
       app.innerHTML = `
-        <!-- Header Navigare -->
-        <header class="bg-slate-900 text-white shadow">
+        <header class="bg-slate-900 text-white shadow-md">
           <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
             <div class="flex items-center gap-3">
-              <i class="fa-solid fa-graduation-cap text-indigo-400 text-2xl"></i>
+              <i class="fa-solid fa-chart-line text-indigo-400 text-2xl"></i>
               <div>
-                <h1 class="font-bold leading-tight">Portal Curs Postuniversitar</h1>
-                <p class="text-xs text-slate-400">Punct de acces materiale și teme</p>
+                <h1 class="font-bold leading-tight text-lg">Business Analysis</h1>
+                <p class="text-xs text-slate-400">Platformă Curs Postuniversitar</p>
               </div>
             </div>
-            <div class="flex items-center gap-4 text-sm">
-              <span class="hidden sm:inline text-slate-300"><i class="fa-regular fa-user mr-1"></i> ${currentUser.name} (${currentUser.role === 'admin' ? 'Lector' : 'Cursant'})</span>
+            <div class="flex items-center gap-3 text-sm">
+              <span class="hidden sm:inline text-slate-300"><i class="fa-regular fa-user mr-1 text-indigo-400"></i> ${currentUser.name} (${currentUser.role === 'admin' ? 'Lector / Admin' : 'Cursant'})</span>
               <button onclick="logout()" class="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-md text-xs font-medium border border-slate-700 transition">
-                Ieșire <i class="fa-solid fa-arrow-right-from-bracket ml-1"></i>
+                Ieșire <i class="fa-solid fa-right-from-bracket ml-1"></i>
               </button>
             </div>
           </div>
         </header>
 
-        <!-- Meniu Tab-uri -->
-        <div class="bg-white border-b border-slate-200">
+        <div class="bg-white border-b border-slate-200 shadow-sm">
           <div class="max-w-6xl mx-auto px-4 flex gap-6 text-sm font-medium">
             <button onclick="activeTab='courses'; selectedCourse=null; render()" class="py-3 border-b-2 ${activeTab === 'courses' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}">
-              <i class="fa-solid fa-book-open mr-1"></i> Cursuri & PPT
+              <i class="fa-solid fa-book-open mr-1"></i> Orar & Suport Curs
             </button>
             <button onclick="activeTab='assignments'; render()" class="py-3 border-b-2 ${activeTab === 'assignments' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}">
               <i class="fa-solid fa-file-arrow-up mr-1"></i> Predare Teme
             </button>
             <button onclick="activeTab='qa'; render()" class="py-3 border-b-2 ${activeTab === 'qa' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}">
-              <i class="fa-solid fa-comments mr-1"></i> Întrebări & Forum
+              <i class="fa-solid fa-comments mr-1"></i> Întrebări & Discuții
             </button>
+            ${currentUser.role === 'admin' ? `
+              <button onclick="activeTab='admin'; render()" class="py-3 border-b-2 ${activeTab === 'admin' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}">
+                <i class="fa-solid fa-user-shield mr-1"></i> Administrare Conturi
+              </button>
+            ` : ''}
           </div>
         </div>
 
-        <!-- Conținut Principal -->
         <main class="max-w-6xl mx-auto px-4 py-6 flex-1 w-full">
           ${renderTabContent()}
         </main>
@@ -187,7 +345,7 @@
     function renderTabContent() {
       if (activeTab === 'courses') {
         if (selectedCourse) {
-          const slide = selectedCourse.slides[currentSlideIndex];
+          const slide = selectedCourse.slides ? selectedCourse.slides[currentSlideIndex] : null;
           const today = new Date().toLocaleDateString('ro-RO');
 
           return `
@@ -195,62 +353,90 @@
               <button onclick="selectedCourse=null; render()" class="mb-4 text-indigo-600 hover:underline text-sm font-medium flex items-center gap-1">
                 <i class="fa-solid fa-arrow-left"></i> Înapoi la lista de cursuri
               </button>
-              
-              <div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
-                <!-- Header Prezentare -->
-                <div class="bg-slate-800 text-white p-4 flex justify-between items-center">
-                  <h2 class="font-bold text-lg">${selectedCourse.title}</h2>
-                  <span class="text-xs bg-slate-700 px-2.5 py-1 rounded">Slide ${currentSlideIndex + 1} din ${selectedCourse.slides.length}</span>
+
+              <div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden mb-6">
+                <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
+                  <div>
+                    <span class="text-xs bg-indigo-600 text-white font-semibold px-2 py-0.5 rounded">${selectedCourse.day}</span>
+                    <h2 class="font-bold text-lg mt-1">${selectedCourse.title}</h2>
+                    <p class="text-xs text-slate-400"><i class="fa-solid fa-user-tie mr-1"></i> Lector: ${selectedCourse.lecturer}</p>
+                  </div>
+                  <span class="text-xs text-slate-300 font-mono">${selectedCourse.date}</span>
                 </div>
 
-                <!-- Ecran Prezentare Slide Vizualizator Protejat -->
-                <div class="relative bg-slate-900 text-white min-h-[380px] p-8 flex flex-col justify-between overflow-hidden">
-                  
-                  <!-- Watermark Dinamic Anti-Screengrab -->
-                  <div class="absolute inset-0 pointer-events-none opacity-10 flex items-center justify-center transform -rotate-12 select-none font-mono text-xl sm:text-2xl text-center leading-relaxed">
-                    ${currentUser.name}<br>${currentUser.email}<br>${today} - Confidențial
-                  </div>
-
-                  <!-- Continut Slide -->
-                  <div class="relative z-10 max-w-3xl mx-auto w-full">
-                    <h3 class="text-2xl font-bold mb-4 text-indigo-300">${slide.title}</h3>
-                    <div class="text-slate-200 leading-relaxed whitespace-pre-line text-lg">
-                      ${slide.content}
+                <!-- DACA EXISTA PDF INCARCAT -->
+                ${selectedCourse.pdfData ? `
+                  <div class="relative bg-slate-800 p-2 min-h-[500px]">
+                    <!-- Watermark Protecție -->
+                    <div class="absolute inset-0 pointer-events-none z-20 flex items-center justify-center opacity-15 transform -rotate-12 font-mono text-center text-white text-lg sm:text-xl font-bold">
+                      ${currentUser.name}<br>${currentUser.email}<br>${today}<br>CONFIDENȚIAL • PROTEJAT
                     </div>
+                    <iframe src="${selectedCourse.pdfData}#toolbar=0&navpanes=0" class="w-full h-[600px] border-0 rounded"></iframe>
                   </div>
+                ` : `
+                  <!-- DACA SUNT SLIDE-URI TEXT -->
+                  <div class="relative bg-slate-900 text-white min-h-[350px] p-8 flex flex-col justify-between overflow-hidden">
+                    <div class="absolute inset-0 pointer-events-none opacity-10 flex items-center justify-center transform -rotate-12 select-none font-mono text-xl text-center leading-relaxed">
+                      ${currentUser.name}<br>${currentUser.email}<br>${today} - CONFIDENȚIAL
+                    </div>
 
-                  <!-- Navigare Slide-uri -->
-                  <div class="relative z-10 flex justify-between items-center pt-6 border-t border-slate-800 mt-6">
-                    <button ${currentSlideIndex === 0 ? 'disabled class="opacity-40 cursor-not-allowed"' : 'onclick="currentSlideIndex--; render()"'} class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded text-sm font-medium">
-                      <i class="fa-solid fa-chevron-left mr-1"></i> Anterior
-                    </button>
-                    <span class="text-xs text-slate-400">Vizualizare securizată (Descărcare blocată)</span>
-                    <button ${currentSlideIndex === selectedCourse.slides.length - 1 ? 'disabled class="opacity-40 cursor-not-allowed"' : 'onclick="currentSlideIndex++; render()"'} class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded text-sm font-medium">
-                      Următor <i class="fa-solid fa-chevron-right ml-1"></i>
-                    </button>
+                    ${slide ? `
+                      <div class="relative z-10 max-w-3xl mx-auto w-full">
+                        <h3 class="text-2xl font-bold mb-4 text-indigo-300">${slide.title}</h3>
+                        <div class="text-slate-200 leading-relaxed whitespace-pre-line text-lg">
+                          ${slide.content}
+                        </div>
+                      </div>
+                      <div class="relative z-10 flex justify-between items-center pt-6 border-t border-slate-800 mt-6">
+                        <button ${currentSlideIndex === 0 ? 'disabled class="opacity-40 cursor-not-allowed"' : 'onclick="currentSlideIndex--; render()"'} class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded text-sm font-medium">
+                          <i class="fa-solid fa-chevron-left mr-1"></i> Anterior
+                        </button>
+                        <span class="text-xs text-slate-400">Slide ${currentSlideIndex + 1} din ${selectedCourse.slides.length}</span>
+                        <button ${currentSlideIndex === selectedCourse.slides.length - 1 ? 'disabled class="opacity-40 cursor-not-allowed"' : 'onclick="currentSlideIndex++; render()"'} class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded text-sm font-medium">
+                          Următor <i class="fa-solid fa-chevron-right ml-1"></i>
+                        </button>
+                      </div>
+                    ` : '<p class="text-center text-slate-400 py-10">Suportul de curs urmează să fie încărcat de profesor.</p>'}
                   </div>
-                </div>
+                `}
               </div>
             </div>
           `;
         }
 
         return `
-          <h2 class="text-xl font-bold mb-4 text-slate-800">Materiale și Suport de Curs</h2>
+          <div class="flex justify-between items-center mb-6">
+            <div>
+              <h2 class="text-xl font-bold text-slate-800">Program Curs & Materiale</h2>
+              <p class="text-xs text-slate-500">Curs Postuniversitar Business Analysis</p>
+            </div>
+          </div>
+
           <div class="grid gap-4 sm:grid-cols-2">
             ${db.courses.map(course => `
               <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col justify-between">
                 <div>
-                  <div class="flex items-center gap-2 text-indigo-600 font-semibold mb-2">
-                    <i class="fa-regular fa-file-powerpoint text-lg"></i>
-                    <span>Prezentare Online</span>
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full">${course.day}</span>
+                    <span class="text-xs text-slate-500 font-medium">${course.date}</span>
                   </div>
-                  <h3 class="font-bold text-slate-800 text-lg mb-1">${course.title}</h3>
-                  <p class="text-slate-600 text-sm mb-4">${course.description}</p>
+                  <h3 class="font-bold text-slate-800 text-base mb-1">${course.title}</h3>
+                  <p class="text-xs font-medium text-indigo-600 mb-2"><i class="fa-solid fa-user-tie mr-1"></i> ${course.lecturer}</p>
+                  <p class="text-slate-600 text-xs mb-4 line-clamp-2">${course.description}</p>
                 </div>
-                <button onclick="selectedCourse = db.courses.find(c => c.id === ${course.id}); currentSlideIndex = 0; render();" class="w-full bg-slate-900 text-white py-2 rounded-lg text-sm font-medium hover:bg-indigo-600 transition flex items-center justify-center gap-2">
-                  <i class="fa-solid fa-play text-xs"></i> Deschide Cursul
-                </button>
+
+                <div class="space-y-2 border-t pt-3 border-slate-100">
+                  <button onclick="selectedCourse = db.courses.find(c => c.id === ${course.id}); currentSlideIndex = 0; render();" class="w-full bg-slate-900 text-white py-2 rounded-lg text-xs font-medium hover:bg-indigo-600 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-eye text-xs"></i> Deschide Suport Curs
+                  </button>
+
+                  ${currentUser.role === 'admin' ? `
+                    <div class="bg-slate-50 p-2 rounded border border-slate-200 text-xs space-y-1.5">
+                      <span class="font-bold text-slate-700 block">Încărcare Suport (PDF / PPT)</span>
+                      <input type="file" accept=".pdf" onchange="handlePdfUpload(${course.id}, this)" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                    </div>
+                  ` : ''}
+                </div>
               </div>
             `).join('')}
           </div>
@@ -272,16 +458,15 @@
                     </span>
                   </div>
                   <p class="text-xs text-slate-500 mb-4">Termen limită: ${ass.dueDate}</p>
-                  
                   ${mySub ? `
-                    <div class="bg-slate-50 p-3 rounded-lg border text-sm text-slate-700">
-                      <p class="font-semibold text-xs text-slate-500 mb-1">Răspunsul tău trimis:</p>
-                      <p>${mySub.text}</p>
+                    <div class="bg-slate-50 p-3 rounded-lg border text-xs text-slate-700">
+                      <p class="font-semibold text-slate-500 mb-1">Răspunsul tău trimis la data de ${mySub.date}:</p>
+                      <p class="whitespace-pre-line">${mySub.text}</p>
                     </div>
                   ` : `
                     <form onsubmit="event.preventDefault(); submitAssignment(${ass.id}, this.text.value);">
-                      <textarea name="text" required placeholder="Scrie rezolvarea temei sau lipeste linkul către lucrare aici..." class="w-full border rounded-lg p-3 text-sm mb-3 focus:ring-2 focus:ring-indigo-500 outline-none" rows="3"></textarea>
-                      <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+                      <textarea name="text" required placeholder="Scrie rezolvarea temei sau lipeste linkul către fișier..." class="w-full border rounded-lg p-3 text-sm mb-3 focus:ring-2 focus:ring-indigo-500 outline-none" rows="3"></textarea>
+                      <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-medium hover:bg-indigo-700 transition">
                         Trimite Tema
                       </button>
                     </form>
@@ -296,31 +481,25 @@
       if (activeTab === 'qa') {
         return `
           <h2 class="text-xl font-bold mb-4 text-slate-800">Întrebări și Discuții</h2>
-          
-          <!-- Formular adăugare întrebare -->
           <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm mb-6">
             <h3 class="font-semibold text-sm mb-3">Adresează o întrebare lectorilor</h3>
             <form onsubmit="event.preventDefault(); addQuestion(this.title.value, this.text.value); this.reset();">
               <input name="title" required placeholder="Titlu întrebare / Subiect..." class="w-full border rounded-lg p-2.5 text-sm mb-2 focus:ring-2 focus:ring-indigo-500 outline-none">
               <textarea name="text" required placeholder="Detaliază întrebarea ta..." class="w-full border rounded-lg p-2.5 text-sm mb-3 focus:ring-2 focus:ring-indigo-500 outline-none" rows="2"></textarea>
-              <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+              <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-medium hover:bg-indigo-700 transition">
                 Postează Întrebarea
               </button>
             </form>
           </div>
-
-          <!-- Lista întrebări -->
           <div class="space-y-4">
             ${db.questions.map(q => `
               <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
                 <div class="flex items-center gap-2 mb-1">
                   <span class="font-bold text-slate-800 text-sm">${q.title}</span>
-                  <span class="text-xs text-slate-400">• adresat de ${q.author}</span>
+                  <span class="text-xs text-slate-400">• de ${q.author}</span>
                 </div>
                 <p class="text-slate-600 text-sm mb-3">${q.text}</p>
-                
-                <!-- Răspunsuri -->
-                <div class="pl-4 border-l-2 border-indigo-100 space-y-2 mt-2">
+                <div class="pl-4 border-l-2 border-indigo-200 space-y-2">
                   ${q.replies.map(r => `
                     <div class="bg-slate-50 p-2.5 rounded text-xs text-slate-700">
                       ${r}
@@ -332,13 +511,52 @@
           </div>
         `;
       }
+
+      if (activeTab === 'admin' && currentUser.role === 'admin') {
+        return `
+          <h2 class="text-xl font-bold mb-4 text-slate-800">Administrare Conturi Utilizatori</h2>
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="p-4 bg-slate-900 text-white flex justify-between items-center">
+              <span class="font-bold text-sm">Total Utilizatori: ${db.users.length}</span>
+              <span class="text-xs text-slate-400">Lectori + 29 Cursanți</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs text-left border-collapse">
+                <thead class="bg-slate-100 text-slate-700 font-semibold border-b">
+                  <tr>
+                    <th class="p-3">#</th>
+                    <th class="p-3">Nume complet</th>
+                    <th class="p-3">Email</th>
+                    <th class="p-3">Parolă</th>
+                    <th class="p-3">Rol</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  ${db.users.map((u, i) => `
+                    <tr class="hover:bg-slate-50">
+                      <td class="p-3 font-mono text-slate-400">${i+1}</td>
+                      <td class="p-3 font-medium text-slate-800">${u.name}</td>
+                      <td class="p-3 text-slate-600">${u.email}</td>
+                      <td class="p-3 font-mono text-indigo-600 font-bold">${u.pass}</td>
+                      <td class="p-3">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}">
+                          ${u.role}
+                        </span>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }
     }
 
-    // --- ACȚIUNI INTERACTIVE ---
     function submitAssignment(assId, text) {
       const ass = db.assignments.find(a => a.id === assId);
       if (ass) {
-        ass.submitted.push({ userId: currentUser.id, userName: currentUser.name, text: text, date: new Date().toISOString().split('T')[0] });
+        ass.submitted.push({ userId: currentUser.id, userName: currentUser.name, text: text, date: new Date().toLocaleDateString('ro-RO') });
         saveData();
         alert('Tema a fost trimisă cu succes!');
       }
@@ -355,7 +573,6 @@
       saveData();
     }
 
-    // Inițializare prima afișare
     render();
   </script>
 </body>
