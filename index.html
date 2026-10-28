@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Platformă Curs Postuniversitar</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Protecție împotriva selectării textului */
+    .no-select {
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+    @media print {
+      body { display: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 no-select min-h-screen flex flex-col">
+
+  <!-- APLICAȚIA PRINCIPALĂ -->
+  <div id="app" class="flex-1 flex flex-col"></div>
+
+  <script>
+    // --- BAZĂ DE DATE LOCALĂ (Simulată în memorie / localStorage) ---
+    const defaultData = {
+      users: [
+        { id: 1, email: "cursant1@email.com", pass: "cursant123", name: "Maria Ionescu", role: "student" },
+        { id: 2, email: "cursant2@email.com", pass: "cursant123", name: "Alexandru Popa", role: "student" },
+        { id: 3, email: "admin@email.com", pass: "admin123", name: "Prof. Dr. Popescu (Lector)", role: "admin" }
+      ],
+      courses: [
+        {
+          id: 1,
+          title: "Curs 1: Introducere și Concepte Fundamentale",
+          description: "Notiuni introductive, cadrul legislativ și principii generale.",
+          slides: [
+            { title: "Slide 1: Titlul Cursului", content: "Bine ați venit la Cursul Postuniversitar!\n\nObiective:\n- Înțelegerea cadrului general\n- Analiza studiilor de caz\n- Aplicabilitate practică." },
+            { title: "Slide 2: Structura Modulelor", content: "Moulul 1: Fundamente\nModulul 2: Metodologii Avansate\nModulul 3: Evaluare și Proiect Final" },
+            { title: "Slide 3: Bibliografie și Cerințe", content: "Lecturi obligatorii:\n1. Ghidul Practic 2026\n2. Manualul de Standarde Postuniversitare." }
+          ]
+        },
+        {
+          id: 2,
+          title: "Curs 2: Metodologii și Studii de Caz",
+          description: "Aplicarea modelelor teoretice pe cazuri reale.",
+          slides: [
+            { title: "Slide 1: Studiu de Caz #1", content: "Analiza situației A: Identificarea problemelor de structură." },
+            { title: "Slide 2: Soluții Recomandate", content: "Strategii de implementare și planul de acțiune." }
+          ]
+        }
+      ],
+      assignments: [
+        { id: 1, title: "Tema 1: Analiză critică pe Cursul 1", dueDate: "2026-11-15", submitted: [] }
+      ],
+      questions: [
+        { id: 1, author: "Maria Ionescu", title: "Întrebare Curs 1 Slide 2", text: "Care este termenul limita pentru parcurgerea modulului 1?", replies: ["Lector: Termenul este finalul acestei săptămâni."] }
+      ]
+    };
+
+    // Stocare locală
+    if (!localStorage.getItem('lms_data')) {
+      localStorage.setItem('lms_data', JSON.stringify(defaultData));
+    }
+    
+    let db = JSON.parse(localStorage.getItem('lms_data'));
+    let currentUser = JSON.parse(sessionStorage.getItem('lms_session')) || null;
+    let activeTab = 'courses';
+    let currentSlideIndex = 0;
+    let selectedCourse = null;
+
+    function saveData() {
+      localStorage.setItem('lms_data', JSON.stringify(db));
+      render();
+    }
+
+    // --- PROTECȚII ANTI-DESCĂRCARE & COPY/PRINT ---
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 's' || e.key === 'c' || e.key === 'u')) {
+        e.preventDefault();
+        alert('Protecție activă: Copierea, salvarea sau imprimarea materialelor este restricționată.');
+      }
+    });
+
+    // --- LOGICĂ AUTENTIFICARE ---
+    function login(email, pass) {
+      const user = db.users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.pass === pass);
+      if (user) {
+        currentUser = user;
+        sessionStorage.setItem('lms_session', JSON.stringify(currentUser));
+        render();
+      } else {
+        alert('Email sau parolă incorectă!');
+      }
+    }
+
+    function logout() {
+      currentUser = null;
+      sessionStorage.removeItem('lms_session');
+      selectedCourse = null;
+      render();
+    }
+
+    // --- RANDARE INTERFAȚĂ ---
+    function render() {
+      const app = document.getElementById('app');
+
+      if (!currentUser) {
+        app.innerHTML = `
+          <div class="min-h-screen flex items-center justify-center bg-slate-100 p-4">
+            <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-md border border-slate-200">
+              <div class="text-center mb-6">
+                <div class="bg-indigo-600 text-white w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-xl font-bold">
+                  <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-slate-800">Curs Postuniversitar</h1>
+                <p class="text-slate-500 text-sm mt-1">Autentificare Cursanți și Lectori</p>
+              </div>
+              <form onsubmit="event.preventDefault(); login(this.email.value, this.pass.value);">
+                <div class="mb-4">
+                  <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Email</label>
+                  <input name="email" type="email" required placeholder="cursant1@email.com" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="mb-6">
+                  <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Parolă</label>
+                  <input name="pass" type="password" required placeholder="••••••••" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition">Intră în Cont</button>
+              </form>
+              <div class="mt-6 p-3 bg-slate-50 rounded-lg text-xs text-slate-500 border border-slate-200">
+                <p class="font-semibold text-slate-700 mb-1">Date demo de test:</p>
+                <p>Cursant: <code>cursant1@email.com</code> / <code>cursant123</code></p>
+                <p>Lector/Admin: <code>admin@email.com</code> / <code>admin123</code></p>
+              </div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      app.innerHTML = `
+        <!-- Header Navigare -->
+        <header class="bg-slate-900 text-white shadow">
+          <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+              <i class="fa-solid fa-graduation-cap text-indigo-400 text-2xl"></i>
+              <div>
+                <h1 class="font-bold leading-tight">Portal Curs Postuniversitar</h1>
+                <p class="text-xs text-slate-400">Punct de acces materiale și teme</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 text-sm">
+              <span class="hidden sm:inline text-slate-300"><i class="fa-regular fa-user mr-1"></i> ${currentUser.name} (${currentUser.role === 'admin' ? 'Lector' : 'Cursant'})</span>
+              <button onclick="logout()" class="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-md text-xs font-medium border border-slate-700 transition">
+                Ieșire <i class="fa-solid fa-arrow-right-from-bracket ml-1"></i>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <!-- Meniu Tab-uri -->
+        <div class="bg-white border-b border-slate-200">
+          <div class="max-w-6xl mx-auto px-4 flex gap-6 text-sm font-medium">
+            <button onclick="activeTab='courses'; selectedCourse=null; render()" class="py-3 border-b-2 ${activeTab === 'courses' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}">
+              <i class="fa-solid fa-book-open mr-1"></i> Cursuri & PPT
+            </button>
+            <button onclick="activeTab='assignments'; render()" class="py-3 border-b-2 ${activeTab === 'assignments' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}">
+              <i class="fa-solid fa-file-arrow-up mr-1"></i> Predare Teme
+            </button>
+            <button onclick="activeTab='qa'; render()" class="py-3 border-b-2 ${activeTab === 'qa' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}">
+              <i class="fa-solid fa-comments mr-1"></i> Întrebări & Forum
+            </button>
+          </div>
+        </div>
+
+        <!-- Conținut Principal -->
+        <main class="max-w-6xl mx-auto px-4 py-6 flex-1 w-full">
+          ${renderTabContent()}
+        </main>
+      `;
+    }
+
+    function renderTabContent() {
+      if (activeTab === 'courses') {
+        if (selectedCourse) {
+          const slide = selectedCourse.slides[currentSlideIndex];
+          const today = new Date().toLocaleDateString('ro-RO');
+
+          return `
+            <div>
+              <button onclick="selectedCourse=null; render()" class="mb-4 text-indigo-600 hover:underline text-sm font-medium flex items-center gap-1">
+                <i class="fa-solid fa-arrow-left"></i> Înapoi la lista de cursuri
+              </button>
+              
+              <div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+                <!-- Header Prezentare -->
+                <div class="bg-slate-800 text-white p-4 flex justify-between items-center">
+                  <h2 class="font-bold text-lg">${selectedCourse.title}</h2>
+                  <span class="text-xs bg-slate-700 px-2.5 py-1 rounded">Slide ${currentSlideIndex + 1} din ${selectedCourse.slides.length}</span>
+                </div>
+
+                <!-- Ecran Prezentare Slide Vizualizator Protejat -->
+                <div class="relative bg-slate-900 text-white min-h-[380px] p-8 flex flex-col justify-between overflow-hidden">
+                  
+                  <!-- Watermark Dinamic Anti-Screengrab -->
+                  <div class="absolute inset-0 pointer-events-none opacity-10 flex items-center justify-center transform -rotate-12 select-none font-mono text-xl sm:text-2xl text-center leading-relaxed">
+                    ${currentUser.name}<br>${currentUser.email}<br>${today} - Confidențial
+                  </div>
+
+                  <!-- Continut Slide -->
+                  <div class="relative z-10 max-w-3xl mx-auto w-full">
+                    <h3 class="text-2xl font-bold mb-4 text-indigo-300">${slide.title}</h3>
+                    <div class="text-slate-200 leading-relaxed whitespace-pre-line text-lg">
+                      ${slide.content}
+                    </div>
+                  </div>
+
+                  <!-- Navigare Slide-uri -->
+                  <div class="relative z-10 flex justify-between items-center pt-6 border-t border-slate-800 mt-6">
+                    <button ${currentSlideIndex === 0 ? 'disabled class="opacity-40 cursor-not-allowed"' : 'onclick="currentSlideIndex--; render()"'} class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded text-sm font-medium">
+                      <i class="fa-solid fa-chevron-left mr-1"></i> Anterior
+                    </button>
+                    <span class="text-xs text-slate-400">Vizualizare securizată (Descărcare blocată)</span>
+                    <button ${currentSlideIndex === selectedCourse.slides.length - 1 ? 'disabled class="opacity-40 cursor-not-allowed"' : 'onclick="currentSlideIndex++; render()"'} class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded text-sm font-medium">
+                      Următor <i class="fa-solid fa-chevron-right ml-1"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
+        return `
+          <h2 class="text-xl font-bold mb-4 text-slate-800">Materiale și Suport de Curs</h2>
+          <div class="grid gap-4 sm:grid-cols-2">
+            ${db.courses.map(course => `
+              <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+                <div>
+                  <div class="flex items-center gap-2 text-indigo-600 font-semibold mb-2">
+                    <i class="fa-regular fa-file-powerpoint text-lg"></i>
+                    <span>Prezentare Online</span>
+                  </div>
+                  <h3 class="font-bold text-slate-800 text-lg mb-1">${course.title}</h3>
+                  <p class="text-slate-600 text-sm mb-4">${course.description}</p>
+                </div>
+                <button onclick="selectedCourse = db.courses.find(c => c.id === ${course.id}); currentSlideIndex = 0; render();" class="w-full bg-slate-900 text-white py-2 rounded-lg text-sm font-medium hover:bg-indigo-600 transition flex items-center justify-center gap-2">
+                  <i class="fa-solid fa-play text-xs"></i> Deschide Cursul
+                </button>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      if (activeTab === 'assignments') {
+        return `
+          <h2 class="text-xl font-bold mb-4 text-slate-800">Predare Teme & Proiecte</h2>
+          <div class="space-y-4">
+            ${db.assignments.map(ass => {
+              const mySub = ass.submitted.find(s => s.userId === currentUser.id);
+              return `
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                  <div class="flex justify-between items-start mb-2">
+                    <h3 class="font-bold text-slate-800">${ass.title}</h3>
+                    <span class="text-xs font-semibold px-2.5 py-1 rounded ${mySub ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">
+                      ${mySub ? 'Predat' : 'În așteptare'}
+                    </span>
+                  </div>
+                  <p class="text-xs text-slate-500 mb-4">Termen limită: ${ass.dueDate}</p>
+                  
+                  ${mySub ? `
+                    <div class="bg-slate-50 p-3 rounded-lg border text-sm text-slate-700">
+                      <p class="font-semibold text-xs text-slate-500 mb-1">Răspunsul tău trimis:</p>
+                      <p>${mySub.text}</p>
+                    </div>
+                  ` : `
+                    <form onsubmit="event.preventDefault(); submitAssignment(${ass.id}, this.text.value);">
+                      <textarea name="text" required placeholder="Scrie rezolvarea temei sau lipeste linkul către lucrare aici..." class="w-full border rounded-lg p-3 text-sm mb-3 focus:ring-2 focus:ring-indigo-500 outline-none" rows="3"></textarea>
+                      <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+                        Trimite Tema
+                      </button>
+                    </form>
+                  `}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+
+      if (activeTab === 'qa') {
+        return `
+          <h2 class="text-xl font-bold mb-4 text-slate-800">Întrebări și Discuții</h2>
+          
+          <!-- Formular adăugare întrebare -->
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm mb-6">
+            <h3 class="font-semibold text-sm mb-3">Adresează o întrebare lectorilor</h3>
+            <form onsubmit="event.preventDefault(); addQuestion(this.title.value, this.text.value); this.reset();">
+              <input name="title" required placeholder="Titlu întrebare / Subiect..." class="w-full border rounded-lg p-2.5 text-sm mb-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+              <textarea name="text" required placeholder="Detaliază întrebarea ta..." class="w-full border rounded-lg p-2.5 text-sm mb-3 focus:ring-2 focus:ring-indigo-500 outline-none" rows="2"></textarea>
+              <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+                Postează Întrebarea
+              </button>
+            </form>
+          </div>
+
+          <!-- Lista întrebări -->
+          <div class="space-y-4">
+            ${db.questions.map(q => `
+              <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="font-bold text-slate-800 text-sm">${q.title}</span>
+                  <span class="text-xs text-slate-400">• adresat de ${q.author}</span>
+                </div>
+                <p class="text-slate-600 text-sm mb-3">${q.text}</p>
+                
+                <!-- Răspunsuri -->
+                <div class="pl-4 border-l-2 border-indigo-100 space-y-2 mt-2">
+                  ${q.replies.map(r => `
+                    <div class="bg-slate-50 p-2.5 rounded text-xs text-slate-700">
+                      ${r}
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+    }
+
+    // --- ACȚIUNI INTERACTIVE ---
+    function submitAssignment(assId, text) {
+      const ass = db.assignments.find(a => a.id === assId);
+      if (ass) {
+        ass.submitted.push({ userId: currentUser.id, userName: currentUser.name, text: text, date: new Date().toISOString().split('T')[0] });
+        saveData();
+        alert('Tema a fost trimisă cu succes!');
+      }
+    }
+
+    function addQuestion(title, text) {
+      db.questions.unshift({
+        id: Date.now(),
+        author: currentUser.name,
+        title: title,
+        text: text,
+        replies: []
+      });
+      saveData();
+    }
+
+    // Inițializare prima afișare
+    render();
+  </script>
+</body>
+</html>
