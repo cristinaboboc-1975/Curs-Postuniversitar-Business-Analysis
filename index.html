@@ -115,7 +115,7 @@
       render();
     }
 
-    // --- ÎNCĂRCARE SUPORT CURS (PDF) ---
+    // --- ÎNCĂRCARE SUPORT CURS (PDF - PROTEJAT, NEDESCARCABIL) ---
     async function uploadCoursePdf(courseId, file) {
       if (!file) return;
       const fileName = `curs_${courseId}_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
@@ -136,6 +136,62 @@
       }
 
       alert("Suportul de curs a fost salvat cu succes în Cloud!");
+      loadCloudData();
+    }
+
+    // --- ÎNCĂRCARE MATERIALE DIDACTICE DESCĂRCABILE (MULTI-FIȘIER) ---
+    async function uploadDownloadableResources(courseId, filesList) {
+      if (!filesList || filesList.length === 0) return;
+
+      const course = coursesList.find(c => c.id === courseId);
+      if (!course) return;
+
+      let currentResources = Array.isArray(course.downloadable_resources) ? [...course.downloadable_resources] : [];
+      let successCount = 0;
+
+      for (let file of filesList) {
+        const fileName = `resource_${courseId}_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+        const { data, error } = await sb.storage.from('materiale-didactice').upload(fileName, file);
+
+        if (error) {
+          alert(`Eroare la încărcarea fișierului ${file.name}: ` + error.message);
+          continue;
+        }
+
+        const { data: publicUrlData } = sb.storage.from('materiale-didactice').getPublicUrl(fileName);
+        currentResources.push({
+          name: file.name,
+          url: publicUrlData.publicUrl
+        });
+        successCount++;
+      }
+
+      const { error: dbErr } = await sb.from('courses').update({ downloadable_resources: currentResources }).eq('id', courseId);
+      if (dbErr) {
+        alert("Eroare salvare resurse în baza de date: " + dbErr.message);
+        return;
+      }
+
+      alert(`${successCount} material(e) didactic(e) încărcat(e) cu succes!`);
+      loadCloudData();
+    }
+
+    // --- ȘTERGERE MATERIAL DIDACTIC DESCĂRCABIL ---
+    async function deleteDownloadableResource(courseId, index) {
+      if (!confirm("Sigur doriți să ștergeți acest material didactic?")) return;
+
+      const course = coursesList.find(c => c.id === courseId);
+      if (!course) return;
+
+      let currentResources = Array.isArray(course.downloadable_resources) ? [...course.downloadable_resources] : [];
+      currentResources.splice(index, 1);
+
+      const { error: dbErr } = await sb.from('courses').update({ downloadable_resources: currentResources }).eq('id', courseId);
+      if (dbErr) {
+        alert("Eroare la ștergerea fișierului: " + dbErr.message);
+        return;
+      }
+
       loadCloudData();
     }
 
@@ -407,7 +463,7 @@
                 ` : `
                   <div class="p-12 text-center text-slate-500">
                     <i class="fa-solid fa-file-pdf text-4xl mb-3 text-slate-300"></i>
-                    <p class="font-semibold text-slate-700">Suportul de curs urmează să fie încărcat de organizator/lector.</p>
+                    <p class="font-semibold text-slate-700">Suportul de curs (prezentarea) urmează să fie încărcat de titular.</p>
                   </div>
                 `}
               </div>
@@ -426,6 +482,7 @@
           <div class="grid gap-4 sm:grid-cols-2">
             ${coursesList.map(course => {
               const canEditThisCourse = canManageCourse(currentUser, course.id);
+              const resources = Array.isArray(course.downloadable_resources) ? course.downloadable_resources : [];
 
               return `
                 <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col justify-between">
@@ -438,46 +495,76 @@
                     <p class="text-xs font-medium text-indigo-600 mb-2"><i class="fa-solid fa-user-tie mr-1"></i> ${course.lecturer}</p>
                     <p class="text-slate-600 text-xs mb-3 line-clamp-2">${course.description}</p>
 
-                    <!-- SECTIUNE MATERIALE ADITIONALE (QUIZ MOODLE & ENUNT TEMA) -->
-                    <div class="flex flex-wrap gap-2 mb-4">
-                      ${course.quiz_url ? `
-                        <a href="${course.quiz_url}" target="_blank" class="bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 transition">
-                          <i class="fa-solid fa-puzzle-piece text-purple-600"></i> Quiz Moodle
-                        </a>
-                      ` : ''}
+                    <!-- SECTIUNE MATERIALE ADITIONALE (QUIZ, ENUNT TEMA, RESURSE DATASETS) -->
+                    <div class="space-y-2 mb-4">
+                      <div class="flex flex-wrap gap-2">
+                        ${course.quiz_url ? `
+                          <a href="${course.quiz_url}" target="_blank" class="bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 transition">
+                            <i class="fa-solid fa-puzzle-piece text-purple-600"></i> Quiz Moodle
+                          </a>
+                        ` : ''}
 
-                      ${course.assignment_url ? `
-                        <a href="${course.assignment_url}" target="_blank" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 transition">
-                          <i class="fa-solid fa-file-lines text-emerald-600"></i> Enunț Temă
-                        </a>
+                        ${course.assignment_url ? `
+                          <a href="${course.assignment_url}" target="_blank" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 transition">
+                            <i class="fa-solid fa-file-lines text-emerald-600"></i> Enunț Temă
+                          </a>
+                        ` : ''}
+                      </div>
+
+                      <!-- LISTĂ MATERIALE DIDACTICE DESCĂRCABILE -->
+                      ${resources.length > 0 ? `
+                        <div class="bg-sky-50/70 p-2.5 rounded-lg border border-sky-200 text-xs">
+                          <span class="font-bold text-sky-900 block mb-1.5"><i class="fa-solid fa-folder-open text-sky-600 mr-1"></i> Materiale Didactice & Date Descărcabile:</span>
+                          <div class="space-y-1">
+                            ${resources.map((res, idx) => `
+                              <div class="flex items-center justify-between bg-white p-1.5 rounded border border-sky-100">
+                                <a href="${res.url}" target="_blank" download="${res.name}" class="text-indigo-600 font-semibold hover:underline truncate max-w-[220px] flex items-center gap-1">
+                                  <i class="fa-solid fa-file-arrow-down text-sky-600"></i> ${res.name}
+                                </a>
+                                ${canEditThisCourse ? `
+                                  <button onclick="deleteDownloadableResource(${course.id}, ${idx})" class="text-red-500 hover:text-red-700 ml-2" title="Șterge fișier">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                  </button>
+                                ` : ''}
+                              </div>
+                            `).join('')}
+                          </div>
+                        </div>
                       ` : ''}
                     </div>
                   </div>
 
                   <div class="space-y-2 border-t pt-3 border-slate-100">
+                    <!-- SUPORT CURS PROTEJAT (VIZUALIZARE NUMAI - FARA DESCARCARE) -->
                     <button onclick="selectedCourse = coursesList.find(c => c.id === ${course.id}); render();" class="w-full bg-slate-900 text-white py-2 rounded-lg text-xs font-medium hover:bg-indigo-600 transition flex items-center justify-center gap-2">
-                      <i class="fa-solid fa-eye text-xs"></i> Vizualizează Suport Curs Securizat
+                      <i class="fa-solid fa-eye text-xs"></i> Vizualizează Suport Curs Securizat (Nedescărcabil)
                     </button>
 
                     ${canEditThisCourse ? `
-                      <div class="bg-indigo-50/70 p-3 rounded-lg border border-indigo-200 text-xs space-y-2 mt-2">
+                      <div class="bg-indigo-50/70 p-3 rounded-lg border border-indigo-200 text-xs space-y-2.5 mt-2">
                         <span class="font-bold text-indigo-900 block border-b border-indigo-200 pb-1">
                           <i class="fa-solid fa-sliders text-indigo-600 mr-1"></i> Administrare Modul (${course.day}):
                         </span>
                         
-                        <!-- 1. Suport Curs PDF -->
+                        <!-- 1. Suport Curs PDF (Protejat, Vizualizabil) -->
                         <div>
-                          <label class="block text-[11px] font-semibold text-slate-700 mb-0.5"><i class="fa-solid fa-file-pdf text-red-500 mr-1"></i> Suport Curs (PDF):</label>
+                          <label class="block text-[11px] font-semibold text-slate-700 mb-0.5"><i class="fa-solid fa-file-pdf text-red-500 mr-1"></i> Suport Curs Protejat (PDF):</label>
                           <input type="file" accept=".pdf" onchange="uploadCoursePdf(${course.id}, this.files[0])" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700">
                         </div>
 
-                        <!-- 2. Quiz Moodle -->
+                        <!-- 2. Materiale Didactice Descărcabile (Multi-fișier: CSV, Excel, R, Python, ZIP etc.) -->
+                        <div>
+                          <label class="block text-[11px] font-semibold text-slate-700 mb-0.5"><i class="fa-solid fa-file-circle-plus text-sky-600 mr-1"></i> Materiale Didactice Descărcabile (Selectați unul sau mai multe fișiere):</label>
+                          <input type="file" multiple onchange="uploadDownloadableResources(${course.id}, this.files)" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-sky-600 file:text-white hover:file:bg-sky-700">
+                        </div>
+
+                        <!-- 3. Quiz Moodle -->
                         <div>
                           <label class="block text-[11px] font-semibold text-slate-700 mb-0.5"><i class="fa-solid fa-puzzle-piece text-purple-600 mr-1"></i> Quiz Moodle (Fișier):</label>
                           <input type="file" onchange="uploadCourseQuiz(${course.id}, this.files[0])" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700">
                         </div>
 
-                        <!-- 3. Enunț Temă -->
+                        <!-- 4. Enunț Temă -->
                         <div>
                           <label class="block text-[11px] font-semibold text-slate-700 mb-0.5"><i class="fa-solid fa-file-signature text-emerald-600 mr-1"></i> Enunț Temă (Fișier):</label>
                           <input type="file" onchange="uploadCourseAssignment(${course.id}, this.files[0])" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700">
