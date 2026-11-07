@@ -34,9 +34,14 @@
     let activeTab = 'courses';
     let selectedCourse = null;
     let selectedCourseFilter = 1;
+    let activeQuizCourse = null;
+    let activeQuizQuestions = [];
+    let quizUserAnswers = {};
+    let quizResultSummary = null;
 
     let coursesList = [];
     let submissionsList = [];
+    let quizResultsList = [];
     let questionsList = [];
     let studentsList = [];
 
@@ -57,6 +62,36 @@
       return false;
     }
 
+    // --- PARSER PENTRU FORMATUL AIKEN (MOODLE) ---
+    function parseAikenQuiz(text) {
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+      const questions = [];
+      let currentQ = null;
+
+      lines.forEach(line => {
+        if (line.startsWith('ANSWER:')) {
+          if (currentQ) {
+            currentQ.answer = line.replace('ANSWER:', '').trim();
+            questions.push(currentQ);
+            currentQ = null;
+          }
+        } else if (/^[A-E]\.\s/.test(line)) {
+          if (currentQ) {
+            const letter = line[0];
+            const optionText = line.substring(2).trim();
+            currentQ.options.push({ letter, text: optionText });
+          }
+        } else {
+          if (!currentQ) {
+            currentQ = { question: line, options: [], answer: '' };
+          } else {
+            currentQ.question += ' ' + line;
+          }
+        }
+      });
+      return questions;
+    }
+
     // --- ÎNCĂRCARE DATE DIN SUPABASE ---
     async function loadCloudData() {
       try {
@@ -65,6 +100,9 @@
 
         const { data: sData } = await sb.from('submissions').select('*');
         if (sData) submissionsList = sData;
+
+        const { data: qrData } = await sb.from('quiz_results').select('*');
+        if (qrData) quizResultsList = qrData;
 
         const { data: qData } = await sb.from('questions').select('*').order('id', { ascending: false });
         if (qData) questionsList = qData;
@@ -112,6 +150,7 @@
       currentUser = null;
       sessionStorage.removeItem('ba_lms_user');
       selectedCourse = null;
+      activeQuizCourse = null;
       render();
     }
 
@@ -195,7 +234,7 @@
       loadCloudData();
     }
 
-    // --- ÎNCĂRCARE QUIZ MOODLE ---
+    // --- ÎNCĂRCARE QUIZ MOODLE (FIȘIER AIKEN TXT) ---
     async function uploadCourseQuiz(courseId, file) {
       if (!file) return;
       const fileName = `quiz_${courseId}_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
@@ -215,7 +254,7 @@
         return;
       }
 
-      alert("Quiz-ul Moodle a fost încărcat cu succes!");
+      alert("Quiz-ul Moodle a fost încărcat cu succes! Cursanții pot susține testul interactiv.");
       loadCloudData();
     }
 
@@ -240,6 +279,77 @@
       }
 
       alert("Enunțul temei a fost încărcat cu succes!");
+      loadCloudData();
+    }
+
+    // --- LANSATE / SUSTINERE QUIZ MOODLE INTERACTIV ---
+    async function startQuiz(course) {
+      if (!course.quiz_url) return;
+      try {
+        const resp = await fetch(course.quiz_url);
+        const text = await resp.text();
+        const parsed = parseAikenQuiz(text);
+
+        if (!parsed || parsed.length === 0) {
+          alert("Fișierul Quiz Moodle nu a putut fi extras corect. Verificați formatul Aiken.");
+          return;
+        }
+
+        activeQuizCourse = course;
+        activeQuizQuestions = parsed;
+        quizUserAnswers = {};
+        quizResultSummary = null;
+        render();
+      } catch (err) {
+        alert("Eroare la descărcarea testului: " + err.message);
+      }
+    }
+
+    // --- TRIMITERE & CORECTARE AUTOMATĂ QUIZ MOODLE ---
+    async function submitQuiz() {
+      if (!activeQuizCourse || !activeQuizQuestions.length) return;
+
+      let correctCount = 0;
+      const totalCount = activeQuizQuestions.length;
+
+      activeQuizQuestions.forEach((q, idx) => {
+        if (quizUserAnswers[idx] === q.answer) {
+          correctCount++;
+        }
+      });
+
+      const grade10 = parseFloat(((correctCount / totalCount) * 10).toFixed(2));
+      const takenAt = new Date().toLocaleString('ro-RO');
+
+      const existing = quizResultsList.find(r => r.course_id === activeQuizCourse.id && r.user_id === currentUser.id);
+
+      if (existing) {
+        await sb.from('quiz_results').update({
+          score: correctCount,
+          total_questions: totalCount,
+          grade_10: grade10,
+          taken_at: takenAt
+        }).eq('id', existing.id);
+      } else {
+        await sb.from('quiz_results').insert({
+          course_id: activeQuizCourse.id,
+          user_id: currentUser.id,
+          user_name: currentUser.name,
+          user_email: currentUser.email,
+          score: correctCount,
+          total_questions: totalCount,
+          grade_10: grade10,
+          taken_at: takenAt
+        });
+      }
+
+      quizResultSummary = {
+        correct: correctCount,
+        total: totalCount,
+        grade: grade10
+      };
+
+      alert(`Test finalizat! Scorul tău: ${correctCount}/${totalCount} (Nota ${grade10}). Rezultatul s-a salvat în catalog!`);
       loadCloudData();
     }
 
@@ -287,7 +397,7 @@
       loadCloudData();
     }
 
-    // --- ACORDARE NOTĂ & FEEDBACK ---
+    // --- ACORDARE NOTĂ TEMĂ & FEEDBACK (LECTOR) ---
     async function saveGrade(subId, gradeVal, feedbackVal) {
       const { error } = await sb.from('submissions').update({
         grade: gradeVal,
@@ -296,11 +406,11 @@
       }).eq('id', subId);
 
       if (error) {
-        alert("Eroare salvare notă: " + error.message);
+        alert("Eroare salvare notă temă: " + error.message);
         return;
       }
 
-      alert("Nota și feedback-ul au fost salvate cu succes!");
+      alert("Nota și feedback-ul pentru temă au fost salvate cu succes!");
       loadCloudData();
     }
 
@@ -406,17 +516,17 @@
 
         <div class="bg-white border-b border-slate-200 shadow-sm">
           <div class="max-w-6xl mx-auto px-4 flex gap-6 text-sm font-medium overflow-x-auto">
-            <button onclick="activeTab='courses'; selectedCourse=null; render()" class="py-3 border-b-2 whitespace-nowrap ${activeTab === 'courses' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}">
+            <button onclick="activeTab='courses'; selectedCourse=null; activeQuizCourse=null; render()" class="py-3 border-b-2 whitespace-nowrap ${activeTab === 'courses' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}">
               <i class="fa-solid fa-book-open mr-1"></i> Orar & Suport Curs
             </button>
-            <button onclick="activeTab='assignments'; render()" class="py-3 border-b-2 whitespace-nowrap ${activeTab === 'assignments' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}">
+            <button onclick="activeTab='assignments'; activeQuizCourse=null; render()" class="py-3 border-b-2 whitespace-nowrap ${activeTab === 'assignments' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}">
               <i class="fa-solid fa-file-arrow-up mr-1"></i> ${isAdminOrSuper ? 'Corectare Teme & Note' : 'Predare Teme'}
             </button>
-            <button onclick="activeTab='qa'; render()" class="py-3 border-b-2 whitespace-nowrap ${activeTab === 'qa' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}">
+            <button onclick="activeTab='qa'; activeQuizCourse=null; render()" class="py-3 border-b-2 whitespace-nowrap ${activeTab === 'qa' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}">
               <i class="fa-solid fa-comments mr-1"></i> Întrebări & Discuții
             </button>
             ${isAdminOrSuper ? `
-              <button onclick="activeTab='gradebook'; render()" class="py-3 border-b-2 whitespace-nowrap ${activeTab === 'gradebook' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}">
+              <button onclick="activeTab='gradebook'; activeQuizCourse=null; render()" class="py-3 border-b-2 whitespace-nowrap ${activeTab === 'gradebook' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}">
                 <i class="fa-solid fa-table-list mr-1"></i> Catalog Note General
               </button>
             ` : ''}
@@ -432,6 +542,95 @@
     function renderTabContent() {
       const isSuperAdmin = currentUser.role === 'superadmin';
       const isAdminOrSuper = currentUser.role === 'admin' || currentUser.role === 'superadmin';
+
+      // MODAL SUSTINERE QUIZ MOODLE INTERACTIV
+      if (activeQuizCourse && activeQuizQuestions.length > 0) {
+        return `
+          <div class="max-w-3xl mx-auto bg-white p-6 rounded-xl shadow-lg border border-slate-200">
+            <div class="flex justify-between items-center border-b pb-4 mb-4">
+              <div>
+                <span class="text-xs bg-purple-100 text-purple-700 font-bold px-2.5 py-0.5 rounded-full">${activeQuizCourse.day}</span>
+                <h2 class="text-xl font-bold text-slate-900 mt-1">Test Interactiv Moodle: ${activeQuizCourse.title}</h2>
+                <p class="text-xs text-slate-500">Titular: ${activeQuizCourse.lecturer}</p>
+              </div>
+              <button onclick="activeQuizCourse=null; render()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            ${quizResultSummary ? `
+              <div class="bg-purple-50 p-6 rounded-xl border border-purple-200 text-center mb-6">
+                <i class="fa-solid fa-award text-4xl text-purple-600 mb-2"></i>
+                <h3 class="text-2xl font-bold text-purple-900">Testul a fost corectat!</h3>
+                <p class="text-lg font-semibold text-purple-800 mt-1">Scor: ${quizResultSummary.correct} din ${quizResultSummary.total} răspunsuri corecte</p>
+                <div class="inline-block bg-purple-600 text-white font-mono text-xl font-bold px-6 py-2 rounded-lg mt-3 shadow">
+                  Nota Obținută: ${quizResultSummary.grade} / 10
+                </div>
+                <p class="text-xs text-slate-500 mt-3">Nota s-a salvat automat în catalogul general de note!</p>
+              </div>
+            ` : ''}
+
+            <div class="space-y-6">
+              ${activeQuizQuestions.map((q, qIdx) => {
+                const userAns = quizUserAnswers[qIdx];
+                const isCorrect = quizResultSummary && userAns === q.answer;
+
+                return `
+                  <div class="p-4 rounded-lg border ${quizResultSummary ? (isCorrect ? 'bg-green-50/60 border-green-300' : 'bg-red-50/60 border-red-300') : 'bg-slate-50 border-slate-200'}">
+                    <p class="font-bold text-slate-900 text-sm mb-3">
+                      <span class="bg-slate-200 text-slate-800 px-2 py-0.5 rounded text-xs mr-2">Întrebarea ${qIdx + 1}</span>
+                      ${q.question}
+                    </p>
+
+                    <div class="space-y-2">
+                      ${q.options.map(opt => {
+                        const isSelected = userAns === opt.letter;
+                        const isRightAnswer = quizResultSummary && opt.letter === q.answer;
+
+                        let optionStyle = "border-slate-200 bg-white hover:border-indigo-300";
+                        if (quizResultSummary) {
+                          if (isRightAnswer) optionStyle = "border-green-500 bg-green-100 text-green-900 font-bold";
+                          else if (isSelected && !isRightAnswer) optionStyle = "border-red-500 bg-red-100 text-red-900 line-through";
+                        } else if (isSelected) {
+                          optionStyle = "border-indigo-600 bg-indigo-50 text-indigo-900 font-semibold";
+                        }
+
+                        return `
+                          <label onclick="${!quizResultSummary ? `quizUserAnswers[${qIdx}]='${opt.letter}'; render();` : ''}" class="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition ${optionStyle}">
+                            <input type="radio" name="q_${qIdx}" value="${opt.letter}" ${isSelected ? 'checked' : ''} ${quizResultSummary ? 'disabled' : ''} class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
+                            <span class="text-xs leading-relaxed"><strong class="mr-1">${opt.letter}.</strong> ${opt.text}</span>
+                          </label>
+                        `;
+                      }).join('')}
+                    </div>
+
+                    ${quizResultSummary ? `
+                      <div class="mt-2 text-xs font-semibold ${isCorrect ? 'text-green-700' : 'text-red-700'}">
+                        ${isCorrect ? '<i class="fa-solid fa-circle-check mr-1"></i> Răspuns Corect!' : `<i class="fa-solid fa-circle-xmark mr-1"></i> Răspuns incorect. Varianta corectă era: <strong>${q.answer}</strong>`}
+                      </div>
+                    ` : ''}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+
+            <div class="mt-6 border-t pt-4 flex justify-between items-center">
+              <button onclick="activeQuizCourse=null; render()" class="px-4 py-2 border rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100">
+                Închide Testul
+              </button>
+              ${!quizResultSummary ? `
+                <button onclick="submitQuiz()" class="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition shadow flex items-center gap-2">
+                  <i class="fa-solid fa-paper-plane"></i> Trimite și Corectează Testul Automat
+                </button>
+              ` : `
+                <button onclick="startQuiz(activeQuizCourse)" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition">
+                  <i class="fa-solid fa-rotate-right mr-1"></i> Re-susține Testul
+                </button>
+              `}
+            </div>
+          </div>
+        `;
+      }
 
       // TAB 1: ORAR & VIZUALIZARE CURSURI PROTEJATE
       if (activeTab === 'courses') {
@@ -483,6 +682,7 @@
             ${coursesList.map(course => {
               const canEditThisCourse = canManageCourse(currentUser, course.id);
               const resources = Array.isArray(course.downloadable_resources) ? course.downloadable_resources : [];
+              const myQuizResult = quizResultsList.find(r => r.course_id === course.id && r.user_id === currentUser.id);
 
               return `
                 <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col justify-between">
@@ -499,9 +699,9 @@
                     <div class="space-y-2 mb-4">
                       <div class="flex flex-wrap gap-2">
                         ${course.quiz_url ? `
-                          <a href="${course.quiz_url}" target="_blank" class="bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 transition">
-                            <i class="fa-solid fa-puzzle-piece text-purple-600"></i> Quiz Moodle
-                          </a>
+                          <button onclick="startQuiz(coursesList.find(c => c.id === ${course.id}))" class="bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 transition">
+                            <i class="fa-solid fa-puzzle-piece text-purple-600"></i> ${myQuizResult ? `Test Moodle (Nota ${myQuizResult.grade_10})` : 'Susține Test Moodle'}
+                          </button>
                         ` : ''}
 
                         ${course.assignment_url ? `
@@ -535,7 +735,6 @@
                   </div>
 
                   <div class="space-y-2 border-t pt-3 border-slate-100">
-                    <!-- SUPORT CURS PROTEJAT (VIZUALIZARE NUMAI - FARA DESCARCARE) -->
                     <button onclick="selectedCourse = coursesList.find(c => c.id === ${course.id}); render();" class="w-full bg-slate-900 text-white py-2 rounded-lg text-xs font-medium hover:bg-indigo-600 transition flex items-center justify-center gap-2">
                       <i class="fa-solid fa-eye text-xs"></i> Vizualizează Suport Curs Securizat (Nedescărcabil)
                     </button>
@@ -546,25 +745,21 @@
                           <i class="fa-solid fa-sliders text-indigo-600 mr-1"></i> Administrare Modul (${course.day}):
                         </span>
                         
-                        <!-- 1. Suport Curs PDF (Protejat, Vizualizabil) -->
                         <div>
                           <label class="block text-[11px] font-semibold text-slate-700 mb-0.5"><i class="fa-solid fa-file-pdf text-red-500 mr-1"></i> Suport Curs Protejat (PDF):</label>
                           <input type="file" accept=".pdf" onchange="uploadCoursePdf(${course.id}, this.files[0])" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700">
                         </div>
 
-                        <!-- 2. Materiale Didactice Descărcabile (Multi-fișier: CSV, Excel, R, Python, ZIP etc.) -->
                         <div>
-                          <label class="block text-[11px] font-semibold text-slate-700 mb-0.5"><i class="fa-solid fa-file-circle-plus text-sky-600 mr-1"></i> Materiale Didactice Descărcabile (Selectați unul sau mai multe fișiere):</label>
+                          <label class="block text-[11px] font-semibold text-slate-700 mb-0.5"><i class="fa-solid fa-file-circle-plus text-sky-600 mr-1"></i> Materiale Didactice Descărcabile (Multi-fișier):</label>
                           <input type="file" multiple onchange="uploadDownloadableResources(${course.id}, this.files)" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-sky-600 file:text-white hover:file:bg-sky-700">
                         </div>
 
-                        <!-- 3. Quiz Moodle -->
                         <div>
-                          <label class="block text-[11px] font-semibold text-slate-700 mb-0.5"><i class="fa-solid fa-puzzle-piece text-purple-600 mr-1"></i> Quiz Moodle (Fișier):</label>
-                          <input type="file" onchange="uploadCourseQuiz(${course.id}, this.files[0])" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700">
+                          <label class="block text-[11px] font-semibold text-slate-700 mb-0.5"><i class="fa-solid fa-puzzle-piece text-purple-600 mr-1"></i> Quiz Moodle Interactiv (Fișier TXT format Aiken):</label>
+                          <input type="file" accept=".txt" onchange="uploadCourseQuiz(${course.id}, this.files[0])" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700">
                         </div>
 
-                        <!-- 4. Enunț Temă -->
                         <div>
                           <label class="block text-[11px] font-semibold text-slate-700 mb-0.5"><i class="fa-solid fa-file-signature text-emerald-600 mr-1"></i> Enunț Temă (Fișier):</label>
                           <input type="file" onchange="uploadCourseAssignment(${course.id}, this.files[0])" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700">
@@ -598,7 +793,7 @@
                         <p class="text-xs text-slate-500"><i class="fa-solid fa-user-tie mr-1"></i> Lector: ${course.lecturer}</p>
                       </div>
                       <div>
-                        ${sub ? (sub.grade ? `<span class="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full border border-green-300"><i class="fa-solid fa-star text-amber-500 mr-1"></i> Notat: ${sub.grade}</span>` : `<span class="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full border border-amber-300">Predat (În așteptare)</span>`) : `<span class="bg-slate-100 text-slate-600 text-xs font-bold px-3 py-1 rounded-full border border-slate-200">Nepredat</span>`}
+                        ${sub ? (sub.grade ? `<span class="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full border border-green-300"><i class="fa-solid fa-star text-amber-500 mr-1"></i> Nota Temă: ${sub.grade}</span>` : `<span class="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full border border-amber-300">Temă Predată (În așteptare)</span>`) : `<span class="bg-slate-100 text-slate-600 text-xs font-bold px-3 py-1 rounded-full border border-slate-200">Temă Nepredată</span>`}
                       </div>
                     </div>
 
@@ -618,7 +813,7 @@
                         ${sub.notes ? `<p class="text-slate-700 italic">" ${sub.notes} "</p>` : ''}
                         ${sub.grade ? `
                           <div class="bg-emerald-50 p-2.5 rounded border border-emerald-200 text-xs mt-2">
-                            <p class="font-bold text-emerald-900">Notă: ${sub.grade} (corectat de ${sub.graded_by || 'Lector'})</p>
+                            <p class="font-bold text-emerald-900">Nota Temă: ${sub.grade} (corectat de ${sub.graded_by || 'Lector'})</p>
                             ${sub.feedback ? `<p class="text-emerald-800 mt-0.5"><strong>Feedback:</strong> ${sub.feedback}</p>` : ''}
                           </div>
                         ` : ''}
@@ -675,16 +870,16 @@
                     <form onsubmit="event.preventDefault(); saveGrade(${sub.id}, this.grade.value, this.feedback.value);" class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs space-y-3">
                       <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
                         <div>
-                          <label class="block font-bold text-slate-700 mb-1">Notă:</label>
+                          <label class="block font-bold text-slate-700 mb-1">Nota Temă:</label>
                           <input name="grade" type="text" value="${sub.grade || ''}" required placeholder="ex: 10" class="w-full border rounded p-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500">
                         </div>
                         <div class="sm:col-span-3">
                           <label class="block font-bold text-slate-700 mb-1">Feedback Lector / Asistent:</label>
-                          <input name="feedback" type="text" value="${sub.feedback || ''}" placeholder="Feedback pentru cursant..." class="w-full border rounded p-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500">
+                          <input name="feedback" type="text" value="${sub.feedback || ''}" placeholder="Feedback pentru temă..." class="w-full border rounded p-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500">
                         </div>
                       </div>
                       <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded font-semibold text-xs transition">
-                        <i class="fa-solid fa-floppy-disk mr-1"></i> Salvează Nota & Feedback
+                        <i class="fa-solid fa-floppy-disk mr-1"></i> Salvează Nota Temă
                       </button>
                     </form>
                   </div>
@@ -728,11 +923,16 @@
         `;
       }
 
-      // TAB 4: CATALOG GENERAL NOTE (ADMIN ONLY)
+      // TAB 4: CATALOG GENERAL NOTE (ADMIN ONLY) — AFIȘEAZĂ DOUĂ NOTE (QUIZ & TEMĂ)
       if (activeTab === 'gradebook' && isAdminOrSuper) {
         return `
-          <h2 class="text-xl font-bold mb-1 text-slate-800">Catalog General Note Cursanți (Live Cloud)</h2>
-          <p class="text-xs text-slate-500 mb-6">Centralizatorul tuturor celor 29 de cursanți și notele la cele 9 module de curs.</p>
+          <div class="flex justify-between items-center mb-4">
+            <div>
+              <h2 class="text-xl font-bold text-slate-800">Catalog General Note Cursanți (Live Cloud)</h2>
+              <p class="text-xs text-slate-500">Sunt afișate două note pentru fiecare modul: <strong class="text-purple-700">Q (Nota Quiz Moodle - auto-corectată)</strong> și <strong class="text-emerald-700">T (Nota Temă - corectată de lector)</strong>.</p>
+            </div>
+          </div>
+
           <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div class="overflow-x-auto">
               <table class="w-full text-xs text-left border-collapse">
@@ -740,7 +940,7 @@
                   <tr>
                     <th class="p-3 border-r border-slate-700">#</th>
                     <th class="p-3 border-r border-slate-700 min-w-[180px]">Cursant</th>
-                    ${coursesList.map(c => `<th class="p-2 border-r border-slate-700 text-center min-w-[70px]">${c.day}</th>`).join('')}
+                    ${coursesList.map(c => `<th class="p-2 border-r border-slate-700 text-center min-w-[100px]">${c.day}</th>`).join('')}
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -750,9 +950,26 @@
                       <td class="p-3 font-bold text-slate-800 border-r">${st.name}</td>
                       ${coursesList.map(c => {
                         const sub = submissionsList.find(s => s.course_id === c.id && s.user_id === st.id);
+                        const qRes = quizResultsList.find(q => q.course_id === c.id && q.user_id === st.id);
+
                         return `
-                          <td class="p-2 text-center border-r font-mono">
-                            ${sub && sub.grade ? `<span class="bg-green-100 text-green-800 font-bold px-1.5 py-0.5 rounded">${sub.grade}</span>` : (sub ? `<span class="text-amber-600 font-bold">P</span>` : `<span class="text-slate-300">-</span>`)}
+                          <td class="p-2 border-r text-center font-mono">
+                            <div class="space-y-1">
+                              <div>
+                                ${qRes ? `
+                                  <span class="bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded text-[10px]" title="Test Moodle de la ${qRes.taken_at}">
+                                    Q: ${qRes.grade_10}
+                                  </span>
+                                ` : `<span class="text-slate-300 text-[10px]">Q: -</span>`}
+                              </div>
+                              <div>
+                                ${sub && sub.grade ? `
+                                  <span class="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-[10px]" title="Temă corectată de ${sub.graded_by}">
+                                    T: ${sub.grade}
+                                  </span>
+                                ` : (sub ? `<span class="text-amber-600 font-bold text-[10px]">T: Predat</span>` : `<span class="text-slate-300 text-[10px]">T: -</span>`)}
+                              </div>
+                            </div>
                           </td>
                         `;
                       }).join('')}
