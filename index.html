@@ -58,22 +58,27 @@
     }
 
     // --- LOGICĂ AUTENTIFICARE ---
-    async function login(email, pass) {
-      const { data, error } = await sb
-        .from('users')
-        .select('*')
-        .eq('email', email.trim().toLowerCase())
-        .eq('pass', pass.trim())
-        .single();
+async function login(email, pass) {
+  const { data, error } = await sb
+    .from('users')
+    .select('*')
+    .eq('email', email.trim().toLowerCase())
+    .eq('pass', pass.trim());
 
-      if (data) {
-        currentUser = data;
-        sessionStorage.setItem('ba_lms_user', JSON.stringify(currentUser));
-        loadCloudData();
-      } else {
-        alert("Email sau parolă incorectă!");
-      }
-    }
+  if (error) {
+    alert("Eroare Supabase: " + error.message);
+    console.error(error);
+    return;
+  }
+
+  if (data && data.length > 0) {
+    currentUser = data[0];
+    sessionStorage.setItem('ba_lms_user', JSON.stringify(currentUser));
+    loadCloudData();
+  } else {
+    alert("Utilizatorul nu a fost găsit în baza de date! Verificați emailul și parola.");
+  }
+}
 
     function logout() {
       currentUser = null;
